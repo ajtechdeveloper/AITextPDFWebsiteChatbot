@@ -1,0 +1,9 @@
+streamlit
+langchain
+langchain-community
+pypdf
+faiss-cpu
+sentence-transformers
+huggingface-hub
+unstructured
+python-magic 
