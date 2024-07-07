@@ -28,6 +28,7 @@ if 'chat_history' not in st.session_state:
 if 'input_type' not in st.session_state:
     st.session_state.input_type = None
 
+st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
 st.header("AI PDF, Website, or Text Chatbot")
 st.markdown(
     "This App uses AI to train a chatbot to reply to questions from any of the input: text, PDF or website link.")
