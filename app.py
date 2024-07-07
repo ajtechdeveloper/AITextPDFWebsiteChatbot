@@ -107,12 +107,19 @@ if st.button("Process Input"):
 
 # Chat interface
 if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:")
-    if user_question:
+    # Use a form to get the user question
+    with st.form(key='question_form'):
+        user_question = st.text_input("Ask a question about the input provided:", key='question_input', value=st.session_state.user_question)
+        submit_button = st.form_submit_button("Ask")
+
+    if submit_button and user_question:
         with st.spinner("Generating response..."):
             response = st.session_state.conversation({"question": user_question})
             st.session_state.chat_history.append(("Answer", response['answer']))
             st.session_state.chat_history.append(("Question", user_question))
+        # Clear the question input
+        st.session_state.user_question = ""
+        st.experimental_rerun()
 
 # Display chat history
 if st.session_state.chat_history:
