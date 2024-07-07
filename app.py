@@ -27,6 +27,8 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'input_type' not in st.session_state:
     st.session_state.input_type = None
+if 'user_question' not in st.session_state:
+    st.session_state.user_question = ""
 
 st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
 st.header("AI PDF, Website, or Text Chatbot")
