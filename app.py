@@ -27,8 +27,8 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'input_type' not in st.session_state:
     st.session_state.input_type = None
-if 'user_question' not in st.session_state:
-    st.session_state.user_question = ""
+if 'question_key' not in st.session_state:
+    st.session_state.question_key = 0
 
 st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
 st.header("AI PDF, Website, or Text Chatbot")
@@ -109,15 +109,15 @@ if st.button("Process Input"):
 
 # Chat interface
 if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:", key="user_question", value=st.session_state.user_question)
+    user_question = st.text_input("Ask a question about the input provided:", key=f"user_question_{st.session_state.question_key}")
     if st.button("Ask"):
         if user_question:
             with st.spinner("Generating response..."):
                 response = st.session_state.conversation({"question": user_question})
                 st.session_state.chat_history.append(("Answer", response['answer']))
                 st.session_state.chat_history.append(("Question", user_question))
-            # Clear the question input
-            st.session_state.user_question = ""
+            # Increment the question key to reset the input field
+            st.session_state.question_key += 1
             st.rerun()
 
 # Display chat history
