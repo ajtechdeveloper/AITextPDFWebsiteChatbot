@@ -8,4 +8,5 @@ huggingface-hub
 unstructured
 python-magic
 psutil
-nltk 
+nltk
+torch 

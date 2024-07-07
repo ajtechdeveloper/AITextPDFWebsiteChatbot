@@ -1,4 +1,0 @@
-libmagic-dev
-poppler-utils
-tesseract-ocr
-libreoffice
