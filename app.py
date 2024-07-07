@@ -118,7 +118,7 @@ if st.session_state.conversation:
                 st.session_state.chat_history.append(("Question", user_question))
             # Clear the question input
             st.session_state.user_question = ""
-            st.experimental_rerun()
+            st.rerun()
 
 # Display chat history
 if st.session_state.chat_history:
