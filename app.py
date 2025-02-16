@@ -116,7 +116,8 @@ if st.button("Process Input"):
                 memory=memory,
                 combine_docs_chain_kwargs={"prompt": PROMPT},
                 return_source_documents=True,
-                return_generated_question=False
+                return_generated_question=False,
+                get_chat_history = lambda h: []
             )
 
             st.success("Input processed successfully!")
