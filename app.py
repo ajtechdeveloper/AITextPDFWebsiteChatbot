@@ -106,16 +106,14 @@ if st.button("Process Input"):
 
             memory = ConversationBufferMemory(
                 memory_key="chat_history",
-                return_messages=True,
-                output_key="answer"
+                return_messages=True
             )
 
             st.session_state.conversation = ConversationalRetrievalChain.from_llm(
                 llm=llm,
                 retriever=vectorstore.as_retriever(),
                 memory=memory,
-                combine_docs_chain_kwargs={"prompt": PROMPT},
-                return_source_documents=True
+                combine_docs_chain_kwargs={"prompt": PROMPT}
             )
 
             st.success("Input processed successfully!")
