@@ -2,6 +2,8 @@ streamlit
 langchain
 langchain-community
 faiss-cpu
-transformers
-huggingface-hub
 torch
+transformers
+sentence-transformers
+InstructorEmbedding
+huggingface-hub

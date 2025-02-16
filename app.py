@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader, UnstructuredURLLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
@@ -58,41 +58,46 @@ if st.button("Process Input"):
     st.session_state.chat_history = []
 
     with st.spinner("Processing input..."):
-        if input_type == "PDF" and uploaded_file is not None:
-            with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                tmp_file_path = tmp_file.name
+        try:
+            if input_type == "PDF" and uploaded_file is not None:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_file_path = tmp_file.name
 
-            loader = PyPDFLoader(tmp_file_path)
-            documents = loader.load()
-            os.unlink(tmp_file_path)
-        elif input_type == "Website URL" and url_input:
-            loader = UnstructuredURLLoader([url_input])
-            documents = loader.load()
-        elif input_type == "Text" and text_input:
-            documents = [Document(page_content=text_input)]
-        else:
-            st.error("Please provide input based on your selected input type.")
-            st.stop()
+                loader = PyPDFLoader(tmp_file_path)
+                documents = loader.load()
+                os.unlink(tmp_file_path)
+            elif input_type == "Website URL" and url_input:
+                loader = UnstructuredURLLoader([url_input])
+                documents = loader.load()
+            elif input_type == "Text" and text_input:
+                documents = [Document(page_content=text_input)]
+            else:
+                st.error("Please provide input based on your selected input type.")
+                st.stop()
 
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        texts = text_splitter.split_documents(documents)
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            texts = text_splitter.split_documents(documents)
 
-        embeddings = HuggingFaceEmbeddings()
-        vectorstore = FAISS.from_documents(texts, embeddings)
+            embeddings = HuggingFaceInstructEmbeddings(
+                model_name="hkunlp/instructor-base",
+                model_kwargs={"device": "cpu"}
+            )
 
-        llm = HuggingFaceHub(
-            repo_id="tiiuae/falcon-7b-instruct",
-            model_kwargs={
-                "temperature": 0.5,
-                "max_new_tokens": 512,
-                "top_k": 50,
-                "top_p": 0.95,
-                "task": "text-generation"
-            }
-        )
+            vectorstore = FAISS.from_documents(texts, embeddings)
 
-        prompt_template = """
+            llm = HuggingFaceHub(
+                repo_id="tiiuae/falcon-7b-instruct",
+                model_kwargs={
+                    "temperature": 0.5,
+                    "max_new_tokens": 512,
+                    "top_k": 50,
+                    "top_p": 0.95,
+                    "task": "text-generation"
+                }
+            )
+
+            prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "I cannot answer this question based on the provided context."
 
                 Context: {context}
@@ -100,50 +105,54 @@ if st.button("Process Input"):
                 Question: {question}
                 Answer:"""
 
-        PROMPT = PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
+            PROMPT = PromptTemplate(
+                template=prompt_template,
+                input_variables=["context", "question"]
+            )
 
-        memory = ConversationBufferMemory(
-            memory_key="chat_history",
-            return_messages=True,
-            output_key="answer"
-        )
+            memory = ConversationBufferMemory(
+                memory_key="chat_history",
+                return_messages=True,
+                output_key="answer"
+            )
 
-        st.session_state.conversation = ConversationalRetrievalChain.from_llm(
-            llm=llm,
-            retriever=vectorstore.as_retriever(),
-            memory=memory,
-            combine_docs_chain_kwargs={"prompt": PROMPT},
-            return_source_documents=True
-        )
+            st.session_state.conversation = ConversationalRetrievalChain.from_llm(
+                llm=llm,
+                retriever=vectorstore.as_retriever(),
+                memory=memory,
+                combine_docs_chain_kwargs={"prompt": PROMPT},
+                return_source_documents=True
+            )
 
-    st.success("Input processed successfully!")
+            st.success("Input processed successfully!")
 
-    # Chat interface
-    if st.session_state.conversation:
-        user_question = st.text_input("Ask a question about the input provided:",
-                                      key=f"user_question_{st.session_state.question_key}")
-        if st.button("Ask"):
-            if user_question:
-                with st.spinner("Generating response..."):
-                    try:
-                        response = st.session_state.conversation({"question": user_question})
-                        st.session_state.chat_history.append(("Question", user_question))
-                        st.session_state.chat_history.append(("Answer", response['answer']))
-                    except Exception as e:
-                        st.error(f"An error occurred: {str(e)}")
-                        st.stop()
-                # Increment the question key to reset the input field
-                st.session_state.question_key += 1
-                st.rerun()
+        except Exception as e:
+            st.error(f"An error occurred during processing: {str(e)}")
+            st.stop()
 
-    # Display chat history
-    if st.session_state.chat_history:
-        st.subheader("Chat History")
-        for role, message in reversed(st.session_state.chat_history):
-            if role == "Question":
-                st.markdown(f"**{role}:** {message}")
-            else:
-                st.markdown(f"_{role}:_ {message}")
+# Chat interface
+if st.session_state.conversation:
+    user_question = st.text_input("Ask a question about the input provided:",
+                                  key=f"user_question_{st.session_state.question_key}")
+    if st.button("Ask"):
+        if user_question:
+            with st.spinner("Generating response..."):
+                try:
+                    response = st.session_state.conversation({"question": user_question})
+                    st.session_state.chat_history.append(("Question", user_question))
+                    st.session_state.chat_history.append(("Answer", response['answer']))
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
+                    st.stop()
+            # Increment the question key to reset the input field
+            st.session_state.question_key += 1
+            st.rerun()
+
+# Display chat history
+if st.session_state.chat_history:
+    st.subheader("Chat History")
+    for role, message in reversed(st.session_state.chat_history):
+        if role == "Question":
+            st.markdown(f"**{role}:** {message}")
+        else:
+            st.markdown(f"_{role}:_ {message}")
