@@ -80,15 +80,14 @@ if st.button("Process Input"):
             texts = text_splitter.split_documents(documents)
 
             embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-
             vectorstore = FAISS.from_documents(texts, embeddings)
 
             llm = HuggingFaceHub(
-                repo_id="google/flan-t5-large",  # Changed to a more stable model
+                repo_id="declare-lab/flan-alpaca-large",
+                task="text-generation",
                 model_kwargs={
-                    "temperature": 0.5,
+                    "temperature": 0.7,
                     "max_length": 512,
-                    "task": "text2text-generation"
                 }
             )
 
