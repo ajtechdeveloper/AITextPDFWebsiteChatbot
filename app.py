@@ -94,7 +94,7 @@ if st.button("Process Input"):
             prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "I cannot answer this question based on the provided context."
 
-                {context}
+                Context: {context}
 
                 Question: {question}
                 Answer:"""
@@ -106,14 +106,17 @@ if st.button("Process Input"):
 
             memory = ConversationBufferMemory(
                 memory_key="chat_history",
-                return_messages=True
+                return_messages=True,
+                output_key="answer"
             )
 
             st.session_state.conversation = ConversationalRetrievalChain.from_llm(
                 llm=llm,
                 retriever=vectorstore.as_retriever(),
                 memory=memory,
-                combine_docs_chain_kwargs={"prompt": PROMPT}
+                combine_docs_chain_kwargs={"prompt": PROMPT},
+                return_source_documents=True,
+                return_generated_question=False
             )
 
             st.success("Input processed successfully!")
@@ -124,13 +127,21 @@ if st.button("Process Input"):
 
 # Chat interface
 if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:", key=f"user_question_{st.session_state.question_key}")
+    user_question = st.text_input("Ask a question about the input provided:",
+                                  key=f"user_question_{st.session_state.question_key}")
     if st.button("Ask"):
         if user_question:
             with st.spinner("Generating response..."):
-                response = st.session_state.conversation({"question": user_question})
-                st.session_state.chat_history.append(("Answer", response['answer']))
-                st.session_state.chat_history.append(("Question", user_question))
+                try:
+                    response = st.session_state.conversation({"question": user_question})
+                    answer_text = response['answer']
+                    if 'Answer:' in answer_text:
+                        answer_text = answer_text.split('Answer:', 1)[1].strip()
+                    st.session_state.chat_history.append(("Question", user_question))
+                    st.session_state.chat_history.append(("Answer", answer_text))
+                except Exception as e:
+                    st.error(f"An error occurred: {str(e)}")
+                    st.stop()
             # Increment the question key to reset the input field
             st.session_state.question_key += 1
             st.rerun()
@@ -138,5 +149,15 @@ if st.session_state.conversation:
 # Display chat history
 if st.session_state.chat_history:
     st.subheader("Chat History")
-    for role, message in reversed(st.session_state.chat_history):
-        st.write(f"{role}: {message}")
+    chat_container = st.container()
+
+    with chat_container:
+        for i in range(len(st.session_state.chat_history) - 1, -1, -2):
+            if i >= 1:
+                answer = st.session_state.chat_history[i][1]
+                question = st.session_state.chat_history[i - 1][1]
+
+                st.markdown(f"**Q:** {question}")
+                st.markdown(f"**A:** {answer}")
+                if i > 1:
+                    st.markdown("---")
