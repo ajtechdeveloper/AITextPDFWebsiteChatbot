@@ -5,5 +5,4 @@ faiss-cpu
 torch
 transformers
 sentence-transformers
-InstructorEmbedding
 huggingface-hub

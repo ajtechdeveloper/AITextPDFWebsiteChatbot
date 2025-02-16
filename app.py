@@ -79,21 +79,16 @@ if st.button("Process Input"):
             text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
             texts = text_splitter.split_documents(documents)
 
-            embeddings = HuggingFaceInstructEmbeddings(
-                model_name="hkunlp/instructor-base",
-                model_kwargs={"device": "cpu"}
-            )
+            embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 
             vectorstore = FAISS.from_documents(texts, embeddings)
 
             llm = HuggingFaceHub(
-                repo_id="tiiuae/falcon-7b-instruct",
+                repo_id="google/flan-t5-large",  # Changed to a more stable model
                 model_kwargs={
                     "temperature": 0.5,
-                    "max_new_tokens": 512,
-                    "top_k": 50,
-                    "top_p": 0.95,
-                    "task": "text-generation"
+                    "max_length": 512,
+                    "task": "text2text-generation"
                 }
             )
 
