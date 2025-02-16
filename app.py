@@ -126,18 +126,13 @@ if st.button("Process Input"):
 
 # Chat interface
 if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:",
-                                  key=f"user_question_{st.session_state.question_key}")
+    user_question = st.text_input("Ask a question about the input provided:", key=f"user_question_{st.session_state.question_key}")
     if st.button("Ask"):
         if user_question:
             with st.spinner("Generating response..."):
-                try:
-                    response = st.session_state.conversation({"question": user_question})
-                    st.session_state.chat_history.append(("Question", user_question))
-                    st.session_state.chat_history.append(("Answer", response['answer']))
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
-                    st.stop()
+                response = st.session_state.conversation({"question": user_question})
+                st.session_state.chat_history.append(("Answer", response['answer']))
+                st.session_state.chat_history.append(("Question", user_question))
             # Increment the question key to reset the input field
             st.session_state.question_key += 1
             st.rerun()
@@ -146,7 +141,4 @@ if st.session_state.conversation:
 if st.session_state.chat_history:
     st.subheader("Chat History")
     for role, message in reversed(st.session_state.chat_history):
-        if role == "Question":
-            st.markdown(f"**{role}:** {message}")
-        else:
-            st.markdown(f"_{role}:_ {message}")
+        st.write(f"{role}: {message}")
