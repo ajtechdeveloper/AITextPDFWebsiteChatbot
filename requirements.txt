@@ -1,12 +1,7 @@
 streamlit
 langchain
 langchain-community
-pypdf
 faiss-cpu
-sentence-transformers
+transformers
 huggingface-hub
-unstructured
-python-magic
-psutil
-nltk
-torch 
+torch

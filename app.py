@@ -81,47 +81,69 @@ if st.button("Process Input"):
         embeddings = HuggingFaceEmbeddings()
         vectorstore = FAISS.from_documents(texts, embeddings)
 
-        llm = HuggingFaceHub(repo_id="google/flan-t5-base", model_kwargs={"temperature": 0.5, "max_length": 512})
-
-        prompt_template = """
-        If the question is asked outside the input context, just say "Sorry, I do not know the answer"
-        and
-        use the following pieces of context to answer the question at the end. If you don't know the answer, just say "Sorry, I do not know the answer" - don't try to make up an answer.
-
-        {context}
-
-        Question: {question}
-        Answer:"""
-        PROMPT = PromptTemplate(
-            template=prompt_template, input_variables=["context", "question"]
+        llm = HuggingFaceHub(
+            repo_id="tiiuae/falcon-7b-instruct",
+            model_kwargs={
+                "temperature": 0.5,
+                "max_new_tokens": 512,
+                "top_k": 50,
+                "top_p": 0.95,
+                "task": "text-generation"
+            }
         )
 
-        memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+        prompt_template = """
+                Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "I cannot answer this question based on the provided context."
+
+                Context: {context}
+
+                Question: {question}
+                Answer:"""
+
+        PROMPT = PromptTemplate(
+            template=prompt_template,
+            input_variables=["context", "question"]
+        )
+
+        memory = ConversationBufferMemory(
+            memory_key="chat_history",
+            return_messages=True,
+            output_key="answer"
+        )
 
         st.session_state.conversation = ConversationalRetrievalChain.from_llm(
             llm=llm,
             retriever=vectorstore.as_retriever(),
             memory=memory,
-            combine_docs_chain_kwargs={"prompt": PROMPT}
+            combine_docs_chain_kwargs={"prompt": PROMPT},
+            return_source_documents=True
         )
 
     st.success("Input processed successfully!")
 
-# Chat interface
-if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:", key=f"user_question_{st.session_state.question_key}")
-    if st.button("Ask"):
-        if user_question:
-            with st.spinner("Generating response..."):
-                response = st.session_state.conversation({"question": user_question})
-                st.session_state.chat_history.append(("Answer", response['answer']))
-                st.session_state.chat_history.append(("Question", user_question))
-            # Increment the question key to reset the input field
-            st.session_state.question_key += 1
-            st.rerun()
+    # Chat interface
+    if st.session_state.conversation:
+        user_question = st.text_input("Ask a question about the input provided:",
+                                      key=f"user_question_{st.session_state.question_key}")
+        if st.button("Ask"):
+            if user_question:
+                with st.spinner("Generating response..."):
+                    try:
+                        response = st.session_state.conversation({"question": user_question})
+                        st.session_state.chat_history.append(("Question", user_question))
+                        st.session_state.chat_history.append(("Answer", response['answer']))
+                    except Exception as e:
+                        st.error(f"An error occurred: {str(e)}")
+                        st.stop()
+                # Increment the question key to reset the input field
+                st.session_state.question_key += 1
+                st.rerun()
 
-# Display chat history
-if st.session_state.chat_history:
-    st.subheader("Chat History")
-    for role, message in reversed(st.session_state.chat_history):
-        st.write(f"{role}: {message}")
+    # Display chat history
+    if st.session_state.chat_history:
+        st.subheader("Chat History")
+        for role, message in reversed(st.session_state.chat_history):
+            if role == "Question":
+                st.markdown(f"**{role}:** {message}")
+            else:
+                st.markdown(f"_{role}:_ {message}")
