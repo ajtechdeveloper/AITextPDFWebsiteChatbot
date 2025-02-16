@@ -94,7 +94,7 @@ if st.button("Process Input"):
             prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "I cannot answer this question based on the provided context."
 
-                Context: {context}
+                {context}
 
                 Question: {question}
                 Answer:"""
