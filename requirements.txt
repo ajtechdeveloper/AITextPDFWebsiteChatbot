@@ -1,3 +1,4 @@
+unstructured
 streamlit
 langchain
 langchain-community
