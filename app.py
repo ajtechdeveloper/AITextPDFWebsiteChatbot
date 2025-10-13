@@ -90,19 +90,6 @@ if st.button("Process Input"):
                     "max_length": 256,
                 }
             )
-            try:
-                # Test the model connection
-                test_response = llm("Test connection")
-                st.sidebar.success("🟢 Model connected successfully")
-            except Exception as e:
-                st.sidebar.error(f"🔴 Model connection error: {str(e)}")
-                st.error("""
-                Error connecting to the model. Please check:
-                1. Your HuggingFace token is correct in Streamlit secrets
-                2. You have access to the model
-                3. The model API is currently available
-                """)
-                st.stop()
 
             prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "Sorry, I cannot answer this question based on the provided context."
