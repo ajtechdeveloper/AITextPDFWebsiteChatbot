@@ -34,7 +34,6 @@ def initialize_llm():
     try:
         llm = HuggingFaceHub(
             repo_id="mistralai/Mixtral-8x22B-Instruct-v0.1",
-            task="text-generation",
             model_kwargs={
                 "temperature": 0.7,
                 "max_length": 512,
