@@ -83,13 +83,26 @@ if st.button("Process Input"):
             vectorstore = FAISS.from_documents(texts, embeddings)
 
             llm = HuggingFaceHub(
-                repo_id="google/flan-t5-large",
+                repo_id="facebook/bart-large-cnn",
                 task="text-generation",
                 model_kwargs={
                     "temperature": 0.7,
-                    "max_length": 512,
+                    "max_length": 256,
                 }
             )
+            try:
+                # Test the model connection
+                test_response = llm("Test connection")
+                st.sidebar.success("🟢 Model connected successfully")
+            except Exception as e:
+                st.sidebar.error(f"🔴 Model connection error: {str(e)}")
+                st.error("""
+                Error connecting to the model. Please check:
+                1. Your HuggingFace token is correct in Streamlit secrets
+                2. You have access to the model
+                3. The model API is currently available
+                """)
+                st.stop()
 
             prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "Sorry, I cannot answer this question based on the provided context."
@@ -107,7 +120,8 @@ if st.button("Process Input"):
             memory = ConversationBufferMemory(
                 memory_key="chat_history",
                 return_messages=True,
-                output_key="answer"
+                output_key="answer",
+                max_token_limit=1000
             )
 
             st.session_state.conversation = ConversationalRetrievalChain.from_llm(
