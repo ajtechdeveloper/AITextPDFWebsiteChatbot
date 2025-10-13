@@ -149,6 +149,8 @@ if st.session_state.conversation:
             with st.spinner("Generating response..."):
                 try:
                     response = st.session_state.conversation({"question": user_question})
+                    st.write("Response from API:", response)
+                    st.write("Type of response:", type(response))
                     answer_text = response['answer']
                     if 'Answer:' in answer_text:
                         answer_text = answer_text.split('Answer:', 1)[1].strip()
