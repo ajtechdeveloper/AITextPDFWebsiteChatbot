@@ -83,7 +83,7 @@ if st.button("Process Input"):
             vectorstore = FAISS.from_documents(texts, embeddings)
 
             llm = HuggingFaceHub(
-                repo_id="declare-lab/flan-alpaca-large",
+                repo_id="google/flan-t5-large",
                 task="text-generation",
                 model_kwargs={
                     "temperature": 0.7,
