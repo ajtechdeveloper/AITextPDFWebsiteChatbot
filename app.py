@@ -34,6 +34,7 @@ def initialize_llm():
     try:
         llm = HuggingFaceHub(
             repo_id="google/flan-t5-small",
+            task="text-generation",
             model_kwargs={
                 "temperature": 0.7,
                 "max_length": 512,
