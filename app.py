@@ -5,7 +5,7 @@ from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.llms import HuggingFaceTextGenInference
+from langchain_community.llms import HuggingFaceHub
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 import tempfile
@@ -32,21 +32,20 @@ if 'question_key' not in st.session_state:
 
 def initialize_llm():
     try:
-        # Use HuggingFaceTextGenInference instead of HuggingFaceHub
-        llm = HuggingFaceTextGenInference(
-            inference_server_url="https://api-inference.huggingface.co/models/google/flan-t5-small",
-            headers={"Authorization": f"Bearer {hf_token}"},
-            max_new_tokens=512,
-            temperature=0.7,
-            timeout=120,  # Increased timeout
-            top_k=50,
-            top_p=0.95,
+        llm = HuggingFaceHub(
+            repo_id="google/flan-t5-small",
+            model_kwargs={
+                "temperature": 0.7,
+                "max_length": 512,
+                "truncation": True,
+            },
+            huggingfacehub_api_token=hf_token
         )
         return llm
     except Exception as e:
         st.error(f"Error initializing LLM: {str(e)}")
         return None
-
+        
 st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
 st.header("AI PDF, Website, or Text Chatbot")
 st.markdown(
