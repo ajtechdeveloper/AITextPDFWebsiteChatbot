@@ -5,7 +5,7 @@ from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.llms import HuggingFaceHub
+from langchain_community.llms import HuggingFaceTextGenInference
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 import tempfile
@@ -29,6 +29,23 @@ if 'input_type' not in st.session_state:
     st.session_state.input_type = None
 if 'question_key' not in st.session_state:
     st.session_state.question_key = 0
+
+def initialize_llm():
+    try:
+        # Use HuggingFaceTextGenInference instead of HuggingFaceHub
+        llm = HuggingFaceTextGenInference(
+            inference_server_url="https://api-inference.huggingface.co/models/google/flan-t5-small",
+            headers={"Authorization": f"Bearer {hf_token}"},
+            max_new_tokens=512,
+            temperature=0.7,
+            timeout=120,  # Increased timeout
+            top_k=50,
+            top_p=0.95,
+        )
+        return llm
+    except Exception as e:
+        st.error(f"Error initializing LLM: {str(e)}")
+        return None
 
 st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
 st.header("AI PDF, Website, or Text Chatbot")
@@ -82,14 +99,10 @@ if st.button("Process Input"):
             embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
             vectorstore = FAISS.from_documents(texts, embeddings)
 
-            llm = HuggingFaceHub(
-                repo_id="google/t5-small",
-                task="text-generation",
-                model_kwargs={
-                    "temperature": 0.7,
-                    "max_length": 256,
-                }
-            )
+            llm = initialize_llm()
+            if llm is None:
+                st.error("Failed to initialize the language model.")
+                st.stop()
 
             prompt_template = """
                 Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "Sorry, I cannot answer this question based on the provided context."
