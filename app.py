@@ -33,7 +33,7 @@ if 'question_key' not in st.session_state:
 def initialize_llm():
     try:
         llm = HuggingFaceHub(
-            repo_id="google/flan-t5-small",
+            repo_id="mistralai/Mixtral-8x22B-Instruct-v0.1",
             task="text-generation",
             model_kwargs={
                 "temperature": 0.7,
