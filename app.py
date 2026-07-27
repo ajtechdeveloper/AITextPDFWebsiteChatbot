@@ -82,6 +82,10 @@ def initialize_llm():
 
     def generate(prompt):
 
+        # Convert LangChain ChatPromptValue to plain text
+        if hasattr(prompt, "to_string"):
+            prompt = prompt.to_string()
+
         response = client.chat.completions.create(
             model="meta-llama/Meta-Llama-3.1-8B-Instruct",
             messages=[
