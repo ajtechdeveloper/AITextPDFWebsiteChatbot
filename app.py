@@ -7,7 +7,7 @@ from langchain_community.document_loaders import (
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_huggingface import HuggingFaceEndpoint
-from langchain.memory import ConversationBufferMemory
+from langchain_classic.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from langchain_core.documents import Document
 import tempfile
