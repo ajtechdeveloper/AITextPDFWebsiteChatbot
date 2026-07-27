@@ -87,7 +87,7 @@ def initialize_llm():
             prompt = prompt.to_string()
 
         response = client.chat.completions.create(
-            model="meta-llama/Meta-Llama-3.1-8B-Instruct",
+            model="mistralai/Mistral-7B-Instruct-v0.3",
             messages=[
                 {
                     "role": "user",
