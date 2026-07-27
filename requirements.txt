@@ -3,7 +3,7 @@ streamlit>=1.40.0
 langchain==0.3.7
 langchain-core==0.3.17
 langchain-community==0.3.7
-langchain-huggingface==0.1.2
+langchain-huggingface>=0.1.2
 langchain-text-splitters==0.3.2
 
 faiss-cpu>=1.8.0
@@ -14,7 +14,7 @@ torchvision
 transformers>=4.44.0
 sentence-transformers>=3.0.0
 
-huggingface-hub>=0.24.0
+huggingface-hub>=0.26.0
 
 unstructured
 pypdf
