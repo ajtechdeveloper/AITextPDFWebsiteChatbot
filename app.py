@@ -5,7 +5,7 @@ from langchain_community.embeddings import SentenceTransformerEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
-from langchain_community.llms import HuggingFaceHub
+from langchain_huggingface import HuggingFaceEndpoint
 from langchain.prompts import PromptTemplate
 from langchain.schema import Document
 import tempfile
@@ -32,7 +32,7 @@ if 'question_key' not in st.session_state:
 
 def initialize_llm():
     try:
-        llm = HuggingFaceHub(
+        llm = HuggingFaceEndpoint(
             repo_id="google/flan-t5-large",
             task="text2text-generation",
             model_kwargs={
