@@ -12,6 +12,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from huggingface_hub import InferenceClient
+from transformers import pipeline
 from langchain_core.runnables import RunnableLambda
 from langchain_community.vectorstores import FAISS
 
@@ -75,20 +76,21 @@ if "message_store" not in st.session_state:
 
 def initialize_llm():
 
-    client = InferenceClient(
+    generator = pipeline(
+        "text2text-generation",
         model="google/flan-t5-large",
-        token=hf_token
+        max_new_tokens=512,
+        temperature=0.7
     )
 
     def generate(prompt):
 
-        response = client.text2text_generation(
-            prompt,
-            max_new_tokens=512,
-            temperature=0.7
-        )
+        if isinstance(prompt, dict):
+            prompt = prompt["input"]
 
-        return response.generated_text
+        result = generator(prompt)
+
+        return result[0]["generated_text"]
 
     return RunnableLambda(generate)
 
