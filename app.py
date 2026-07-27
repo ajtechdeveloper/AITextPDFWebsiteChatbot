@@ -9,6 +9,8 @@ from langchain_community.document_loaders import (
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
 from huggingface_hub import InferenceClient
 from langchain_core.runnables import RunnableLambda
 from langchain_community.vectorstores import FAISS
