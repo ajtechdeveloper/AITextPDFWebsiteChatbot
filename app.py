@@ -13,6 +13,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from huggingface_hub import InferenceClient
 from transformers import pipeline
+from openai import OpenAI
 from langchain_core.runnables import RunnableLambda
 from langchain_community.vectorstores import FAISS
 
@@ -77,8 +78,9 @@ if "message_store" not in st.session_state:
 
 def initialize_llm():
 
-    client = InferenceClient(
-        token=hf_token
+    client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=hf_token,
     )
 
     def generate(prompt):
@@ -87,11 +89,11 @@ def initialize_llm():
             prompt = prompt.to_string()
 
         response = client.chat.completions.create(
-            model="HuggingFaceH4/zephyr-7b-beta",
+            model="google/gemma-4-31B-it:cerebras",
             messages=[
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": prompt,
                 }
             ],
             max_tokens=512,
