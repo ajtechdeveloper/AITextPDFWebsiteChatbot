@@ -10,10 +10,10 @@ from langchain_community.document_loaders import (
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from langchain_huggingface import (
-    HuggingFaceEndpoint,
     HuggingFaceEmbeddings,
 )
-
+from huggingface_hub import InferenceClient
+from langchain_core.runnables import RunnableLambda
 from langchain_community.vectorstores import FAISS
 
 from langchain_core.documents import Document
@@ -76,13 +76,22 @@ if "message_store" not in st.session_state:
 
 def initialize_llm():
 
-    return HuggingFaceEndpoint(
-        repo_id="google/flan-t5-large",
-        task="text2text-generation",
-        temperature=0.7,
-        max_new_tokens=512,
-        huggingfacehub_api_token=hf_token,
+    client = InferenceClient(
+        model="google/flan-t5-large",
+        token=hf_token
     )
+
+    def generate(prompt):
+
+        response = client.text2text_generation(
+            prompt,
+            max_new_tokens=512,
+            temperature=0.7
+        )
+
+        return response.generated_text
+
+    return RunnableLambda(generate)
 
 
 # -----------------------------
