@@ -13,8 +13,6 @@ torchvision
 transformers>=4.44.0
 sentence-transformers>=3.0.0
 
-huggingface-hub>=0.26.0
-
 unstructured
 pypdf
 
