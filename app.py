@@ -35,10 +35,8 @@ def initialize_llm():
         llm = HuggingFaceEndpoint(
             repo_id="google/flan-t5-large",
             task="text2text-generation",
-            model_kwargs={
-                "temperature": 0.7,
-                "max_length": 512,
-            },
+            temperature=0.7,
+            max_new_tokens=512,
             huggingfacehub_api_token=hf_token
         )
         return llm
