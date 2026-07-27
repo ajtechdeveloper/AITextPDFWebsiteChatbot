@@ -76,24 +76,27 @@ if "message_store" not in st.session_state:
 
 def initialize_llm():
 
-    generator = pipeline(
-        "text2text-generation",
-        model="google/flan-t5-large",
-        max_new_tokens=512,
-        temperature=0.7
+    client = InferenceClient(
+        token=hf_token
     )
 
     def generate(prompt):
 
-        if isinstance(prompt, dict):
-            prompt = prompt["input"]
+        response = client.chat.completions.create(
+            model="meta-llama/Meta-Llama-3.1-8B-Instruct",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            max_tokens=512,
+            temperature=0.7,
+        )
 
-        result = generator(prompt)
-
-        return result[0]["generated_text"]
+        return response.choices[0].message.content
 
     return RunnableLambda(generate)
-
 
 # -----------------------------
 # Chat history
