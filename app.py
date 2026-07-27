@@ -1,177 +1,395 @@
-import streamlit as st
-from langchain_community.document_loaders import PyPDFLoader, UnstructuredURLLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import SentenceTransformerEmbeddings
-from langchain_community.vectorstores import FAISS
-from langchain_classic.chains import ConversationalRetrievalChain
-from langchain_classic.memory import ConversationBufferMemory
-from langchain_huggingface import HuggingFaceEndpoint
-from langchain_core.prompts import PromptTemplate
-from langchain_core.documents import Document
-import tempfile
 import os
+import tempfile
+import streamlit as st
 
-# Set up Hugging Face credentials
-# To be used when running locally
-# Also .env file to be created at root folder level
-# with token: HUGGINGFACEHUB_API_TOKEN = <Your HuggingFace Hub API Token>
-# load_dotenv(find_dotenv())
-# To be used when deploying to Streamlit Cloud
+from langchain_community.document_loaders import (
+    PyPDFLoader,
+    UnstructuredURLLoader,
+)
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from langchain_huggingface import (
+    HuggingFaceEndpoint,
+    HuggingFaceEmbeddings,
+)
+
+from langchain_community.vectorstores import FAISS
+
+from langchain_core.documents import Document
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
+
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+
+
+# -----------------------------
+# Hugging Face setup
+# -----------------------------
+
 hf_token = st.secrets["HUGGINGFACE_TOKEN"]["token"]
+
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_token
 
-# Initialize session state
-if 'conversation' not in st.session_state:
+
+# -----------------------------
+# Streamlit configuration
+# -----------------------------
+
+st.set_page_config(
+    page_title="AI PDF Website Text Chatbot",
+    page_icon="🤖"
+)
+
+st.header("AI PDF, Website, or Text Chatbot")
+
+st.write(
+    "Upload a PDF, provide a website URL, or paste text "
+    "and chat with an AI assistant."
+)
+
+
+# -----------------------------
+# Session state
+# -----------------------------
+
+if "conversation" not in st.session_state:
     st.session_state.conversation = None
-if 'chat_history' not in st.session_state:
+
+if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-if 'input_type' not in st.session_state:
+
+if "input_type" not in st.session_state:
     st.session_state.input_type = None
-if 'question_key' not in st.session_state:
-    st.session_state.question_key = 0
+
+
+if "message_store" not in st.session_state:
+    st.session_state.message_store = {}
+
+
+# -----------------------------
+# LLM
+# -----------------------------
 
 def initialize_llm():
-    try:
-        llm = HuggingFaceEndpoint(
-            repo_id="google/flan-t5-large",
-            task="text2text-generation",
-            temperature=0.7,
-            max_new_tokens=512,
-            huggingfacehub_api_token=hf_token
+
+    return HuggingFaceEndpoint(
+        repo_id="google/flan-t5-large",
+        task="text2text-generation",
+        temperature=0.7,
+        max_new_tokens=512,
+        huggingfacehub_api_token=hf_token,
+    )
+
+
+# -----------------------------
+# Chat history
+# -----------------------------
+
+def get_session_history(session_id):
+
+    if session_id not in st.session_state.message_store:
+        st.session_state.message_store[session_id] = (
+            InMemoryChatMessageHistory()
         )
-        return llm
-    except Exception as e:
-        st.error(f"Error initializing LLM: {str(e)}")
-        return None
-        
-st.set_page_config(page_title="AI PDF, Website, or Text Chatbot", page_icon=":)")
-st.header("AI PDF, Website, or Text Chatbot")
-st.markdown(
-    "This App uses AI to train a chatbot to reply to questions from any of the input: text, PDF or website link.")
 
-st.markdown("Please Note: When a new input type is selected, the previous chat history will be cleared.")
-# Input type selection
-input_type = st.radio("Choose input type:", ("PDF", "Website URL", "Text"))
+    return st.session_state.message_store[session_id]
 
-# Clear chat when input type changes
+
+# -----------------------------
+# Build RAG chain
+# -----------------------------
+
+def create_chatbot(documents):
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
+
+    chunks = splitter.split_documents(documents)
+
+
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    )
+
+
+    vectorstore = FAISS.from_documents(
+        chunks,
+        embeddings
+    )
+
+
+    retriever = vectorstore.as_retriever(
+        search_kwargs={
+            "k": 4
+        }
+    )
+
+
+    llm = initialize_llm()
+
+
+    system_prompt = """
+You are a helpful assistant.
+
+Answer questions only from the provided context.
+
+If the answer is not available in the context,
+say:
+
+"Sorry, I cannot answer this question based on the provided context."
+
+Context:
+
+{context}
+"""
+
+
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                system_prompt
+            ),
+
+            MessagesPlaceholder(
+                variable_name="chat_history"
+            ),
+
+            (
+                "human",
+                "{input}"
+            ),
+        ]
+    )
+
+
+    document_chain = create_stuff_documents_chain(
+        llm,
+        prompt
+    )
+
+
+    retrieval_chain = create_retrieval_chain(
+        retriever,
+        document_chain
+    )
+
+
+    chatbot = RunnableWithMessageHistory(
+        retrieval_chain,
+        get_session_history,
+        input_messages_key="input",
+        history_messages_key="chat_history",
+        output_messages_key="answer",
+    )
+
+
+    return chatbot
+
+
+
+# -----------------------------
+# Input selection
+# -----------------------------
+
+input_type = st.radio(
+    "Choose input type:",
+    [
+        "PDF",
+        "Website URL",
+        "Text"
+    ]
+)
+
+
 if input_type != st.session_state.input_type:
+
     st.session_state.conversation = None
     st.session_state.chat_history = []
+
     st.session_state.input_type = input_type
 
+
+
 if input_type == "PDF":
-    uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
+
+    uploaded_file = st.file_uploader(
+        "Upload PDF",
+        type="pdf"
+    )
+
+
 elif input_type == "Website URL":
-    url_input = st.text_input("Enter website URL:")
-else:  # Text input
-    text_input = st.text_area("Enter your text here:")
+
+    url_input = st.text_input(
+        "Website URL"
+    )
+
+
+else:
+
+    text_input = st.text_area(
+        "Enter text"
+    )
+
+
+
+# -----------------------------
+# Process input
+# -----------------------------
 
 if st.button("Process Input"):
-    # Clear previous conversation and chat history
-    st.session_state.conversation = None
-    st.session_state.chat_history = []
 
-    with st.spinner("Processing input..."):
+    with st.spinner("Processing..."):
+
         try:
-            if input_type == "PDF" and uploaded_file is not None:
-                with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-                    tmp_file.write(uploaded_file.getvalue())
-                    tmp_file_path = tmp_file.name
 
-                loader = PyPDFLoader(tmp_file_path)
+            documents = []
+
+
+            if input_type == "PDF":
+
+                if uploaded_file is None:
+                    st.error("Upload a PDF first.")
+                    st.stop()
+
+
+                with tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=".pdf"
+                ) as tmp:
+
+                    tmp.write(
+                        uploaded_file.read()
+                    )
+
+                    path = tmp.name
+
+
+                loader = PyPDFLoader(path)
+
                 documents = loader.load()
-                os.unlink(tmp_file_path)
-            elif input_type == "Website URL" and url_input:
-                loader = UnstructuredURLLoader([url_input])
+
+                os.unlink(path)
+
+
+
+            elif input_type == "Website URL":
+
+                loader = UnstructuredURLLoader(
+                    [url_input]
+                )
+
                 documents = loader.load()
-            elif input_type == "Text" and text_input:
-                documents = [Document(page_content=text_input)]
+
+
+
             else:
-                st.error("Please provide input based on your selected input type.")
-                st.stop()
 
-            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-            texts = text_splitter.split_documents(documents)
+                documents = [
+                    Document(
+                        page_content=text_input
+                    )
+                ]
 
-            embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
-            vectorstore = FAISS.from_documents(texts, embeddings)
 
-            llm = initialize_llm()
-            if llm is None:
-                st.error("Failed to initialize the language model.")
-                st.stop()
 
-            prompt_template = """
-                Use the following context to answer the question. If the question cannot be answered using only the provided context, respond with "Sorry, I cannot answer this question based on the provided context."
-
-                Context: {context}
-
-                Question: {question}
-                Answer:"""
-
-            PROMPT = PromptTemplate(
-                template=prompt_template,
-                input_variables=["context", "question"]
+            st.session_state.conversation = create_chatbot(
+                documents
             )
 
-            memory = ConversationBufferMemory(
-                memory_key="chat_history",
-                return_messages=True,
-                output_key="answer",
-                max_token_limit=1000
+
+            st.success(
+                "Ready! Ask questions."
             )
 
-            st.session_state.conversation = ConversationalRetrievalChain.from_llm(
-                llm=llm,
-                retriever=vectorstore.as_retriever(),
-                memory=memory,
-                combine_docs_chain_kwargs={"prompt": PROMPT},
-                return_source_documents=True,
-                return_generated_question=False,
-                get_chat_history = lambda h: []
-            )
-
-            st.success("Input processed successfully!")
 
         except Exception as e:
-            st.error(f"An error occurred during processing: {str(e)}")
-            st.stop()
 
-# Chat interface
+            st.error(
+                f"Processing failed: {e}"
+            )
+
+
+
+# -----------------------------
+# Chat
+# -----------------------------
+
 if st.session_state.conversation:
-    user_question = st.text_input("Ask a question about the input provided:",
-                                  key=f"user_question_{st.session_state.question_key}")
+
+
+    question = st.text_input(
+        "Ask a question"
+    )
+
+
     if st.button("Ask"):
-        if user_question:
-            with st.spinner("Generating response..."):
-                try:
-                    response = st.session_state.conversation({"question": user_question})
-                    st.write("Response from API:", response)
-                    st.write("Type of response:", type(response))
-                    answer_text = response['answer']
-                    if 'Answer:' in answer_text:
-                        answer_text = answer_text.split('Answer:', 1)[1].strip()
-                    st.session_state.chat_history.append(("Question", user_question))
-                    st.session_state.chat_history.append(("Answer", answer_text))
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
-                    st.stop()
-            # Increment the question key to reset the input field
-            st.session_state.question_key += 1
-            st.rerun()
 
-# Display chat history
+
+        with st.spinner("Thinking..."):
+
+            try:
+
+                response = (
+                    st.session_state.conversation.invoke(
+                        {
+                            "input": question
+                        },
+                        config={
+                            "configurable": {
+                                "session_id": "default"
+                            }
+                        }
+                    )
+                )
+
+
+                answer = response["answer"]
+
+
+                st.session_state.chat_history.append(
+                    (
+                        question,
+                        answer
+                    )
+                )
+
+
+            except Exception as e:
+
+                st.error(
+                    f"Error: {e}"
+                )
+
+
+
+# -----------------------------
+# History
+# -----------------------------
+
 if st.session_state.chat_history:
-    st.subheader("Chat History")
-    chat_container = st.container()
 
-    with chat_container:
-        for i in range(len(st.session_state.chat_history) - 1, -1, -2):
-            if i >= 1:
-                answer = st.session_state.chat_history[i][1]
-                question = st.session_state.chat_history[i - 1][1]
+    st.subheader(
+        "Chat History"
+    )
 
-                st.markdown(f"**Q:** {question}")
-                st.markdown(f"**A:** {answer}")
-                if i > 1:
-                    st.markdown("---")
+    for q, a in reversed(
+        st.session_state.chat_history
+    ):
+
+        st.markdown(
+            f"**Q:** {q}"
+        )
+
+        st.markdown(
+            f"**A:** {a}"
+        )
+
+        st.divider()
