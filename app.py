@@ -87,7 +87,7 @@ def initialize_llm():
             prompt = prompt.to_string()
 
         response = client.chat.completions.create(
-            model="HuggingFaceH4/zephyr-7b-beta"
+            model="HuggingFaceH4/zephyr-7b-beta",
             messages=[
                 {
                     "role": "user",
