@@ -82,23 +82,18 @@ def initialize_llm():
 
     def generate(prompt):
 
-        # Convert LangChain ChatPromptValue to plain text
         if hasattr(prompt, "to_string"):
             prompt = prompt.to_string()
 
-        response = client.chat.completions.create(
+        response = client.text_generation(
+            prompt,
             model="mistralai/Mistral-7B-Instruct-v0.3",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            max_tokens=512,
+            max_new_tokens=512,
             temperature=0.7,
+            return_full_text=False
         )
 
-        return response.choices[0].message.content
+        return response
 
     return RunnableLambda(generate)
 
@@ -166,22 +161,23 @@ Context:
 {context}
 """
 
-
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                system_prompt
-            ),
-
-            MessagesPlaceholder(
-                variable_name="chat_history"
-            ),
-
-            (
-                "human",
-                "{input}"
-            ),
+    prompt = PromptTemplate(
+        template="""
+    You are a helpful assistant.
+    
+    Use only the context below.
+    
+    Context:
+    {context}
+    
+    Question:
+    {input}
+    
+    Answer:
+    """,
+        input_variables=[
+            "context",
+            "input"
         ]
     )
 
